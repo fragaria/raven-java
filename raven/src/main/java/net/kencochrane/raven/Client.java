@@ -215,8 +215,14 @@ public class Client {
         return captureException(logMessage, timestamp, loggerName, logLevel, culprit, exception, null);
     }
 
+    public String captureException(String logMessage, long timestamp, String loggerName, Integer logLevel, String culprit, Throwable exception, Map<String, ?> tags, String customExceptionValue) {
+        Message message = buildMessage(logMessage, formatTimestamp(timestamp), loggerName, logLevel, culprit, exception, tags, customExceptionValue);
+        send(message, timestamp);
+        return message.eventId;
+    }
+
     public String captureException(String logMessage, long timestamp, String loggerName, Integer logLevel, String culprit, Throwable exception, Map<String, ?> tags) {
-        Message message = buildMessage(logMessage, formatTimestamp(timestamp), loggerName, logLevel, culprit, exception, tags);
+        Message message = buildMessage(logMessage, formatTimestamp(timestamp), loggerName, logLevel, culprit, exception, tags, null);
         send(message, timestamp);
         return message.eventId;
     }
@@ -247,8 +253,12 @@ public class Client {
         return dsn == null;
     }
 
-    @SuppressWarnings("unchecked")
     protected Message buildMessage(String message, String timestamp, String loggerClass, Integer logLevel, String culprit, Throwable exception, Map<String, ?> tags) {
+        return buildMessage(message, timestamp, loggerClass, logLevel, culprit, exception, tags, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    protected Message buildMessage(String message, String timestamp, String loggerClass, Integer logLevel, String culprit, Throwable exception, Map<String, ?> tags, String customExceptionValue) {
         if (isDisabled()) {
             return Message.NONE;
         }
@@ -260,6 +270,12 @@ public class Client {
         } else {
             Events.exception(obj, exception);
         }
+
+        if (customExceptionValue != null) {
+            ((HashMap)obj.get("sentry.interfaces.Exception")).remove("value");
+            ((HashMap)obj.get("sentry.interfaces.Exception")).put("value", customExceptionValue);
+        }
+
         if (message == null) {
             message = (exception == null ? null : exception.getMessage());
             message = (message == null ? Default.EMPTY_MESSAGE : message);
